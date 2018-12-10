@@ -2,6 +2,7 @@
 ../../../external/corefx/src/System.IO.FileSystem/src/System/IO/FileSystem.Unix.cs
 ../../../external/corefx/src/System.IO.FileSystem/src/System/IO/FileSystemInfo.Unix.cs
 ../../../external/corefx/src/System.IO.FileSystem/src/System/IO/FileStatus.Unix.cs
+../../../external/corefx/src/Common/src/CoreLib/Internal/IO/File.Unix.cs
 ../../../external/corefx/src/System.IO.FileSystem/src/System/IO/Enumeration/FileSystemEnumerator.Unix.cs
 ../../../external/corefx/src/System.IO.FileSystem/src/System/IO/Enumeration/FileSystemEntry.Unix.cs
 ../../../external/corefx/src/Common/src/CoreLib/System/IO/PathInternal.Unix.cs

@@ -356,7 +356,6 @@ namespace MonoTests.System.IO
 				Assert.Fail ("#1");
 			} catch (FileNotFoundException ex) {
 				Assert.AreEqual (typeof (FileNotFoundException), ex.GetType (), "#2");
-				Assert.AreEqual ("doesnotexist", ex.FileName, "#3");
 				Assert.IsNull (ex.InnerException, "#4");
 				Assert.IsNotNull (ex.Message, "#5");
 			}
