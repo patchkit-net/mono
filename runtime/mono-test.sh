@@ -22,6 +22,20 @@ echo "--------------------------------------------------------------------------
 "${MONO_EXECUTABLE}" --version
 echo "---------------------------------------------------------------------------------------"
 
+echo "MARTIN TEST!"
+
+case "$(uname)" in
+    "Linux")
+        mkdir -p ~/.config/.mono/
+        wget -qO- https://download.mono-project.com/test/new-certs.tgz| tar zx -C ~/.config/.mono/
+        ls -l ~/.config
+        ls -l ~/.config/.mono
+        ls -laR ~/.config/.mono
+        ;;
+esac
+
+echo "MARTIN TEST #1"
+
 if [ "$test_suite" = "--xunit" ]; then
     cd net_4_x || exit 1
     export MONO_PATH="$r/net_4_x/tests:$MONO_PATH"
@@ -31,6 +45,9 @@ if [ "$test_suite" = "--xunit" ]; then
             # necessary for the runtime to find libmono-profiler-log
             export LD_LIBRARY_PATH="$r:$LD_LIBRARY_PATH"
             export DYLD_LIBRARY_PATH="$r:$LD_LIBRARY_PATH"
+            ;;
+        *"System.Net.Http"*)
+            export MONO_URI_DOTNETRELATIVEORABSOLUTE=true
             ;;
     esac
     case "$(uname)" in
