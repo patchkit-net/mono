@@ -26,8 +26,8 @@ set MONO_AS_AOT_COMPILER=0
 set VS_CLANGC2_TOOLS_BIN_PATH=
 
 :: Optimization, check if we need to setup full build environment, only needed when running mono-sgen.exe as AOT compiler.
-for %%a IN (%*) do (
-    call :FIND_AOT_ARGUMENT "%%a" MONO_AS_AOT_COMPILER
+echo.%* | findstr /c:"--aot=" > nul && (
+    set MONO_AS_AOT_COMPILER=1
 )
 
 if %MONO_AS_AOT_COMPILER% == 1 (
@@ -133,7 +133,7 @@ echo Incomplete build environment can cause AOT compiler build or link error's d
 :: Add ClangC2 to PATH
 set "PATH=%VS_CLANGC2_TOOLS_BIN_PATH%;%PATH%"
 
-call "%~dp0\mono-sgen.exe" %* && (
+call "%~dp0mono-sgen.exe" %* && (
     set EXCEUTE_RESULT=0
 ) || (
     set EXCEUTE_RESULT=1
@@ -143,24 +143,5 @@ call "%~dp0\mono-sgen.exe" %* && (
 )
 
 exit /b %EXCEUTE_RESULT%
-
-:: ##############################################################################################################################
-:: Functions
-
-:: --------------------------------------------------
-:: Check if argument matches --aot.
-::
-:: %1 Argument to check.
-:: %2 Output, variable to set if found.
-:: --------------------------------------------------
-:FIND_AOT_ARGUMENT
-
-set current_arg=%~1
-set current_arg_sub=%current_arg:~0,5%
-if /i "%current_arg_sub%" == "--aot" (
-    set "%~2=1"
-)
-
-goto :EOF
 
 @echo on

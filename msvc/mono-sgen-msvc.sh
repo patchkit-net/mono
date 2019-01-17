@@ -8,11 +8,21 @@
 # NOTE, MSVC build mono-sgen.exe AOT compiler currently support 64-bit AMD codegen. mono-sgen-msvc.bat will ony setup
 # amd64 versions of VS MSVC build environment and corresponding ClangC2 compiler.
 
-if [[ -z "$ORIGINAL_PATH" ]]; then
-    echo "Warning, run-mono-sgen.sh executed without ORIGINAL_PATH environment variable set. \
-    Windows environment can not be properly restored before running mono-sgen.exe."
-fi
+# Optimization, only run full build environment when running mono-sgen.exe as AOT compiler.
+# If not, just run mono-sgen.exe with supplied arguments.
 
-MONO_SGEN_MSVC_SCRIPT_PATH=$(cygpath -w "$(cd "$(dirname "$0")"; pwd)/mono-sgen-msvc.bat")
-export PATH=$ORIGINAL_PATH
-$WINDIR/System32/cmd.exe /c "$MONO_SGEN_MSVC_SCRIPT_PATH" "$@"
+MONO_SGEN_MSVC_SCRIPT_PATH=$(cd "$(dirname "$0")"; pwd)
+
+if [[ "$@" != *"--aot="* ]]; then
+    "$MONO_SGEN_MSVC_SCRIPT_PATH/mono-sgen.exe" "$@"
+else
+
+    if [[ -z "$ORIGINAL_PATH" ]]; then
+        echo "Warning, run-mono-sgen.sh executed without ORIGINAL_PATH environment variable set. \
+        Windows environment can not be properly restored before running mono-sgen.exe."
+    fi
+
+    MONO_SGEN_MSVC_SCRIPT_PATH=$(cygpath -w "$MONO_SGEN_MSVC_SCRIPT_PATH")
+    export PATH=$ORIGINAL_PATH
+    "$WINDIR/System32/cmd.exe" /c "$MONO_SGEN_MSVC_SCRIPT_PATH/mono-sgen-msvc.bat" "$@"
+fi
