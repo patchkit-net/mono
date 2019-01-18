@@ -254,10 +254,15 @@ fi
 
 if [[ ${CI_TAGS} == *'winaot'* ]];
     then
-    # The AOT compiler on Windows requires Visual Studio's clang.exe and link.exe in $PATH
-    # and we must make sure Visual Studio's link.exe comes before Cygwin's link.exe
-    VC_ROOT="/cygdrive/c/Program Files (x86)/Microsoft Visual Studio 14.0/VC"
-    export PATH="$VC_ROOT/ClangC2/bin/amd64:$VC_ROOT/bin/amd64":$PATH
+
+    if [[ ${PLATFORM} == x64 ]];
+        then
+        # The AOT compiler on Windows requires Visual Studio's clang.exe and link.exe.
+        # Depending on codegen (JIT/LLVM) it might also need platform specific libraries.
+        # Use a wrapper script that will make sure to setup fulll VS MSVC environment if
+        # needed when running mono-sgen.exe as AOT compiler.
+        export MONO_WRAPPER_EXECUTABLE="${MONO_REPO_ROOT}/msvc/build/sgen/x64/bin/Release/mono-sgen-msvc.sh"
+    fi
 fi
 
 if [[ ${CI_TAGS} == *'monolite'* ]]; then make get-monolite-latest; fi
