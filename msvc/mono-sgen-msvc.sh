@@ -23,6 +23,6 @@ else
     fi
 
     MONO_SGEN_MSVC_SCRIPT_PATH=$(cygpath -w "$MONO_SGEN_MSVC_SCRIPT_PATH")
-    export PATH=$ORIGINAL_PATH
+    #export PATH=$ORIGINAL_PATH
     "$WINDIR/System32/cmd.exe" /c "$MONO_SGEN_MSVC_SCRIPT_PATH/mono-sgen-msvc.bat" "$@"
 fi
