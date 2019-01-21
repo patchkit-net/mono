@@ -7,17 +7,38 @@
 
 setlocal
 
+:: If we are running from none Windows shell we will need to restore a clean PATH
+:: before setting up VS MSVC build environment. If not there is a risk we will pick up
+:: for example cygwin binaries when running toolchain commands not explicitly setup by VS MSVC build environment.
+set HKCU_ENV_PATH=
+set HKLM_ENV_PATH=
+if "%SHELL%" == "/bin/bash" (
+    for /f "tokens=2,*" %%a in ('%WINDIR%\System32\reg.exe query "HKCU\Environment" /v "Path" ^| %WINDIR%\System32\find.exe /i "REG_"') do (
+        SET HKCU_ENV_PATH=%%b
+    )
+    for /f "tokens=2,*" %%a in ('%WINDIR%\System32\reg.exe query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v "Path" ^| %WINDIR%\System32\find.exe /i "REG_"') do (
+        SET HKLM_ENV_PATH=%%b
+    )
+)
+
+:: Restore path, if we are running from none Windows shell.
+if "%SHELL%" == "/bin/bash" (
+    call :restore_path "%HKCU_ENV_PATH%" "%HKLM_ENV_PATH%"
+)
+
 :: NOTE, MSVC build mono-sgen.exe AOT compiler currently support 64-bit AMD codegen. Below will only setup
 :: amd64 versions of VS MSVC build environment and corresponding ClangC2 compiler.
 
-set VS_2015_VCVARS_ARCH=amd64\vcvars64.bat
-set VS_2015_CLANGC2_ARCH=amd64
+set VS_2015_TOOLCHAIN_ARCH=amd64
+set VS_2015_VCVARS_ARCH=%VS_2015_TOOLCHAIN_ARCH%\vcvars64.bat
+set VS_2015_CLANGC2_ARCH=%VS_2015_TOOLCHAIN_ARCH%
 set VS_2017_VCVARS_ARCH=vcvars64.bat
 set VS_2017_CLANGC2_ARCH=HostX64
 
 :: 32-bit AOT toolchains for MSVC build mono-sgen.exe is currently not supported.
+:: set VS_2015_TOOLCHAIN_ARCH=x86
 :: set VS_2015_VCVARS_ARCH=vcvars32.bat
-:: set VS_2015_CLANGC2_ARCH=x86
+:: set VS_2015_CLANGC2_ARCH=%VS_2015_TOOLCHAIN_ARCH%
 :: set VS_2017_VCVARS_ARCH=vcvars32.bat
 :: set VS_2017_CLANGC2_ARCH=HostX86
 
@@ -62,26 +83,48 @@ if "%VisualStudioVersion%" == "15.0" (
 :SETUP_VS_2015
 
 set VS_2015_VCINSTALL_DIR=%ProgramFiles(x86)%\Microsoft Visual Studio 14.0\VC\
-set VS_2015_DEV_CMD_PROMPT=%VS_2015_VCINSTALL_DIR%bin\%VS_2015_VCVARS_ARCH%
+
+:: Try to locate installed VS2015 Clang/C2.
 SET VS_2015_CLANGC2_TOOLS_BIN_PATH=%VS_2015_VCINSTALL_DIR%ClangC2\bin\%VS_2015_CLANGC2_ARCH%\
 SET VS_2015_CLANGC2_TOOLS_BIN=%VS_2015_CLANGC2_TOOLS_BIN_PATH%clang.exe
 
 if not exist "%VS_2015_CLANGC2_TOOLS_BIN%" (
-    echo Could not find "%VS_2015_CLANGC2_TOOLS_BIN%", trying VS2017 build environment.
+    echo Could not find "%VS_2015_CLANGC2_TOOLS_BIN%".
     goto SETUP_VS_2017
 )
+
+:SETUP_VS_2015_BUILD_TOOLS
+
+:: Try to locate VS2015 build tools installation.
+set VS_2015_BUILD_TOOLS_INSTALL_DIR=%ProgramFiles(x86)%\Microsoft Visual C++ Build Tools\
+set VS_2015_BUILD_TOOLS_CMD_PROMPT=%VS_2015_BUILD_TOOLS_INSTALL_DIR%vcbuildtools.bat
+
+if not exist "%VS_2015_BUILD_TOOLS_CMD_PROMPT%" (
+    echo Could not find "%VS_2015_BUILD_TOOLS_CMD_PROMPT%".
+    goto SETUP_VS_2015_VC
+)
+
+:: Setup VS2015 VC development environment using build tools installation.
+call "%VS_2015_BUILD_TOOLS_CMD_PROMPT%" %VS_2015_TOOLCHAIN_ARCH%
+
+set "VS_CLANGC2_TOOLS_BIN_PATH=%VS_2015_CLANGC2_TOOLS_BIN_PATH%"
+goto ON_EXECUTE
+
+:SETUP_VS_2015_VC
+
+:: Try to locate installed VS2015 VC environment.
+set VS_2015_DEV_CMD_PROMPT=%VS_2015_VCINSTALL_DIR%bin\%VS_2015_VCVARS_ARCH%
 
 if not exist "%VS_2015_DEV_CMD_PROMPT%" (
-    echo Could not find "%VS_2015_DEV_CMD_PROMPT%", trying VS2017 build environment.
+    echo Could not find "%VS_2015_DEV_CMD_PROMPT%".
     goto SETUP_VS_2017
 )
 
-call "%VS_2015_DEV_CMD_PROMPT%" > NUL && (
-    set "VS_CLANGC2_TOOLS_BIN_PATH=%VS_2015_CLANGC2_TOOLS_BIN_PATH%"
-    goto ON_EXECUTE
-) || (
-    echo Failed executing "%VS_2015_DEV_CMD_PROMPT%", trying VS2017 build environment.
-)
+:: Setup VS2015 VC development environment using VS installation.
+call "%VS_2015_DEV_CMD_PROMPT%" > NUL
+
+set "VS_CLANGC2_TOOLS_BIN_PATH=%VS_2015_CLANGC2_TOOLS_BIN_PATH%"
+goto ON_EXECUTE
 
 :SETUP_VS_2017
 
@@ -89,12 +132,14 @@ set VSWHERE_TOOLS_BIN=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswh
 set VS_2017_VCINSTALL_DIR=
 set VS_2017_DEV_CMD_PROMPT=
 
+:: VS2017 includes vswhere.exe that can be used to locate current VS2017 installation.
 if exist "%VSWHERE_TOOLS_BIN%" (
     for /f "tokens=*" %%a in ('"%VSWHERE_TOOLS_BIN%" -latest -property installationPath') do (
         set VS_2017_VCINSTALL_DIR=%%a\VC\
     )
 )
 
+:: Try to locate installed VS2017 Clang/C2.
 SET VS_2017_CLANGC2_VERSION_FILE=%VS_2017_VCINSTALL_DIR%Auxiliary/Build/Microsoft.ClangC2Version.default.txt
 if not exist "%VS_2017_CLANGC2_VERSION_FILE%" (
 	echo Could not find "%VS_2017_CLANGC2_VERSION_FILE%".
@@ -109,19 +154,37 @@ if not exist "%VS_2017_CLANGC2_TOOLS_BIN%" (
 	goto ON_ENV_ERROR
 )
 
+:SETUP_VS_2017_BUILD_TOOLS
+
+:: Try to locate VS2017 build tools installation.
+set VS_2017_BUILD_TOOLS_INSTALL_DIR=%ProgramFiles(x86)%\Microsoft Visual Studio\2017\BuildTools\
+set VS_2017_BUILD_TOOLS_CMD_PROMPT=%VS_2017_BUILD_TOOLS_INSTALL_DIR%VC\Auxiliary\Build\%VS_2017_VCVARS_ARCH%
+
+if not exist "%VS_2017_BUILD_TOOLS_CMD_PROMPT%" (
+    echo Could not find "%VS_2017_BUILD_TOOLS_CMD_PROMPT%".
+    goto SETUP_VS_2017_VC
+)
+
+:: Setup VS2017 VC development environment using build tools installation.
+call "%VS_2017_BUILD_TOOLS_CMD_PROMPT%" > NUL
+
+set "VS_CLANGC2_TOOLS_BIN_PATH=%VS_2017_CLANGC2_TOOLS_BIN_PATH%"
+goto ON_EXECUTE
+
+:SETUP_VS_2017_VC
+
+:: Try to locate installed VS2017 VC environment.
 set VS_2017_DEV_CMD_PROMPT=%VS_2017_VCINSTALL_DIR%Auxiliary\Build\%VS_2017_VCVARS_ARCH%
 if not exist "%VS_2017_DEV_CMD_PROMPT%" (
     echo Could not find "%VS_2017_DEV_CMD_PROMPT%".
     goto ON_ENV_ERROR
 )
 
-call "%VS_2017_DEV_CMD_PROMPT%" > NUL && (
-    set "VS_CLANGC2_TOOLS_BIN_PATH=%VS_2017_CLANGC2_TOOLS_BIN_PATH%"
-    goto ON_EXECUTE
-) || (
-    echo Failed executing "%VS_2017_DEV_CMD_PROMPT%".
-    goto ON_ENV_ERROR
-)
+:: Setup VS2017 VC development environment using VS installation.
+call "%VS_2017_DEV_CMD_PROMPT%" > NUL
+
+set "VS_CLANGC2_TOOLS_BIN_PATH=%VS_2017_CLANGC2_TOOLS_BIN_PATH%"
+goto ON_EXECUTE
 
 :ON_ENV_ERROR
 
@@ -143,5 +206,18 @@ call "%~dp0mono-sgen.exe" %* && (
 )
 
 exit /b %EXCEUTE_RESULT%
+
+:restore_path
+
+:: Restore PATH.
+if not "%~2" == "" (
+    if not "%~1" == "" (
+        set "PATH=%~2;%~1"
+    ) else (
+        set "PATH=%~2"
+    )
+)
+
+goto :EOF
 
 @echo on

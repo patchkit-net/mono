@@ -16,13 +16,6 @@ MONO_SGEN_MSVC_SCRIPT_PATH=$(cd "$(dirname "$0")"; pwd)
 if [[ "$@" != *"--aot="* ]]; then
     "$MONO_SGEN_MSVC_SCRIPT_PATH/mono-sgen.exe" "$@"
 else
-
-    if [[ -z "$ORIGINAL_PATH" ]]; then
-        echo "Warning, run-mono-sgen.sh executed without ORIGINAL_PATH environment variable set. \
-        Windows environment can not be properly restored before running mono-sgen.exe."
-    fi
-
     MONO_SGEN_MSVC_SCRIPT_PATH=$(cygpath -w "$MONO_SGEN_MSVC_SCRIPT_PATH")
-    #export PATH=$ORIGINAL_PATH
     "$WINDIR/System32/cmd.exe" /c "$MONO_SGEN_MSVC_SCRIPT_PATH/mono-sgen-msvc.bat" "$@"
 fi
