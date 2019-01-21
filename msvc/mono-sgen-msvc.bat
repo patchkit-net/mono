@@ -7,6 +7,10 @@
 
 setlocal
 
+:: Make sure we can restore current working directory after setting up environment.
+:: Some of the VS scripts can change the current working directory.
+set CALLER_WD=%CD%
+
 :: If we are running from none Windows shell we will need to restore a clean PATH
 :: before setting up VS MSVC build environment. If not there is a risk we will pick up
 :: for example cygwin binaries when running toolchain commands not explicitly setup by VS MSVC build environment.
@@ -105,7 +109,10 @@ if not exist "%VS_2015_BUILD_TOOLS_CMD_PROMPT%" (
 )
 
 :: Setup VS2015 VC development environment using build tools installation.
-call "%VS_2015_BUILD_TOOLS_CMD_PROMPT%" %VS_2015_TOOLCHAIN_ARCH%
+call "%VS_2015_BUILD_TOOLS_CMD_PROMPT%" %VS_2015_TOOLCHAIN_ARCH% > NUL
+
+:: Restore callers working directory in case it has been changed by VS scripts.
+cd /d %CALLER_WD%
 
 set "VS_CLANGC2_TOOLS_BIN_PATH=%VS_2015_CLANGC2_TOOLS_BIN_PATH%"
 goto ON_EXECUTE
@@ -122,6 +129,9 @@ if not exist "%VS_2015_DEV_CMD_PROMPT%" (
 
 :: Setup VS2015 VC development environment using VS installation.
 call "%VS_2015_DEV_CMD_PROMPT%" > NUL
+
+:: Restore callers working directory in case it has been changed by VS scripts.
+cd /d %CALLER_WD%
 
 set "VS_CLANGC2_TOOLS_BIN_PATH=%VS_2015_CLANGC2_TOOLS_BIN_PATH%"
 goto ON_EXECUTE
@@ -168,6 +178,9 @@ if not exist "%VS_2017_BUILD_TOOLS_CMD_PROMPT%" (
 :: Setup VS2017 VC development environment using build tools installation.
 call "%VS_2017_BUILD_TOOLS_CMD_PROMPT%" > NUL
 
+:: Restore callers working directory in case it has been changed by VS scripts.
+cd /d %CALLER_WD%
+
 set "VS_CLANGC2_TOOLS_BIN_PATH=%VS_2017_CLANGC2_TOOLS_BIN_PATH%"
 goto ON_EXECUTE
 
@@ -182,6 +195,9 @@ if not exist "%VS_2017_DEV_CMD_PROMPT%" (
 
 :: Setup VS2017 VC development environment using VS installation.
 call "%VS_2017_DEV_CMD_PROMPT%" > NUL
+
+:: Restore callers working directory in case it has been changed by VS scripts.
+cd /d %CALLER_WD%
 
 set "VS_CLANGC2_TOOLS_BIN_PATH=%VS_2017_CLANGC2_TOOLS_BIN_PATH%"
 goto ON_EXECUTE
