@@ -16,6 +16,6 @@ MONO_SGEN_MSVC_SCRIPT_PATH=$(cd "$(dirname "$0")"; pwd)
 if [[ "$@" != *"--aot="* ]]; then
     "$MONO_SGEN_MSVC_SCRIPT_PATH/mono-sgen.exe" "$@"
 else
-    MONO_SGEN_MSVC_SCRIPT_PATH=$(cygpath -w "$MONO_SGEN_MSVC_SCRIPT_PATH")
-    "$WINDIR/System32/cmd.exe" /c "$MONO_SGEN_MSVC_SCRIPT_PATH/mono-sgen-msvc.bat" "$@"
+    MONO_SGEN_MSVC_SCRIPT_PATH=$(cygpath -w "$MONO_SGEN_MSVC_SCRIPT_PATH/mono-sgen-msvc.bat")
+    "$WINDIR/System32/cmd.exe" /c "$MONO_SGEN_MSVC_SCRIPT_PATH" "$@"
 fi

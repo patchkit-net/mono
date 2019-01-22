@@ -7,9 +7,14 @@
 
 setlocal
 
+set EXECUTE_RESULT=1
+
 :: Make sure we can restore current working directory after setting up environment.
 :: Some of the VS scripts can change the current working directory.
 set CALLER_WD=%CD%
+
+:: Get path for current running script.
+set RUN_MONO_SGEN_MSVC_SCRIPT_PATH=%~dp0
 
 :: If we are running from none Windows shell we will need to restore a clean PATH
 :: before setting up VS MSVC build environment. If not there is a risk we will pick up
@@ -25,9 +30,9 @@ if "%SHELL%" == "/bin/bash" (
     )
 )
 
-:: Restore path, if we are running from none Windows shell.
+:: Restore default path, if we are running from none Windows shell.
 if "%SHELL%" == "/bin/bash" (
-    call :restore_path "%HKCU_ENV_PATH%" "%HKLM_ENV_PATH%"
+    call :restore_default_path "%HKCU_ENV_PATH%" "%HKLM_ENV_PATH%"
 )
 
 :: NOTE, MSVC build mono-sgen.exe AOT compiler currently support 64-bit AMD codegen. Below will only setup
@@ -46,7 +51,6 @@ set VS_2017_CLANGC2_ARCH=HostX64
 :: set VS_2017_VCVARS_ARCH=vcvars32.bat
 :: set VS_2017_CLANGC2_ARCH=HostX86
 
-set EXECUTE_RESULT=1
 set MONO_AS_AOT_COMPILER=0
 set VS_CLANGC2_TOOLS_BIN_PATH=
 
@@ -93,7 +97,6 @@ SET VS_2015_CLANGC2_TOOLS_BIN_PATH=%VS_2015_VCINSTALL_DIR%ClangC2\bin\%VS_2015_C
 SET VS_2015_CLANGC2_TOOLS_BIN=%VS_2015_CLANGC2_TOOLS_BIN_PATH%clang.exe
 
 if not exist "%VS_2015_CLANGC2_TOOLS_BIN%" (
-    echo Could not find "%VS_2015_CLANGC2_TOOLS_BIN%".
     goto SETUP_VS_2017
 )
 
@@ -101,48 +104,31 @@ if not exist "%VS_2015_CLANGC2_TOOLS_BIN%" (
 
 :: Try to locate VS2015 build tools installation.
 set VS_2015_BUILD_TOOLS_INSTALL_DIR=%ProgramFiles(x86)%\Microsoft Visual C++ Build Tools\
-set VS_2015_BUILD_TOOLS_CMD_PROMPT=%VS_2015_BUILD_TOOLS_INSTALL_DIR%vcbuildtools.bat
-
-if not exist "%VS_2015_BUILD_TOOLS_CMD_PROMPT%" (
-    echo Could not find "%VS_2015_BUILD_TOOLS_CMD_PROMPT%".
-    goto SETUP_VS_2015_VC
-)
+set VS_2015_BUILD_TOOLS_CMD=%VS_2015_BUILD_TOOLS_INSTALL_DIR%vcbuildtools.bat
 
 :: Setup VS2015 VC development environment using build tools installation.
-call "%VS_2015_BUILD_TOOLS_CMD_PROMPT%" %VS_2015_TOOLCHAIN_ARCH% > NUL
-
-:: Restore callers working directory in case it has been changed by VS scripts.
-cd /d %CALLER_WD%
-
-set "VS_CLANGC2_TOOLS_BIN_PATH=%VS_2015_CLANGC2_TOOLS_BIN_PATH%"
-goto ON_EXECUTE
+call :setup_build_env "%VS_2015_BUILD_TOOLS_CMD%" "%VS_2015_TOOLCHAIN_ARCH%" "%CALLER_WD%" && (
+    set "VS_CLANGC2_TOOLS_BIN_PATH=%VS_2015_CLANGC2_TOOLS_BIN_PATH%"
+    goto ON_EXECUTE
+)
 
 :SETUP_VS_2015_VC
 
 :: Try to locate installed VS2015 VC environment.
-set VS_2015_DEV_CMD_PROMPT=%VS_2015_VCINSTALL_DIR%bin\%VS_2015_VCVARS_ARCH%
+set VS_2015_DEV_CMD=%VS_2015_VCINSTALL_DIR%bin\%VS_2015_VCVARS_ARCH%
 
-if not exist "%VS_2015_DEV_CMD_PROMPT%" (
-    echo Could not find "%VS_2015_DEV_CMD_PROMPT%".
-    goto SETUP_VS_2017
+call :setup_build_env "%VS_2015_DEV_CMD%" "" "%CALLER_WD%" && (
+    set "VS_CLANGC2_TOOLS_BIN_PATH=%VS_2015_CLANGC2_TOOLS_BIN_PATH%"
+    goto ON_EXECUTE
 )
-
-:: Setup VS2015 VC development environment using VS installation.
-call "%VS_2015_DEV_CMD_PROMPT%" > NUL
-
-:: Restore callers working directory in case it has been changed by VS scripts.
-cd /d %CALLER_WD%
-
-set "VS_CLANGC2_TOOLS_BIN_PATH=%VS_2015_CLANGC2_TOOLS_BIN_PATH%"
-goto ON_EXECUTE
 
 :SETUP_VS_2017
 
+:: VS2017 includes vswhere.exe that can be used to locate current VS2017 installation.
 set VSWHERE_TOOLS_BIN=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe
 set VS_2017_VCINSTALL_DIR=
-set VS_2017_DEV_CMD_PROMPT=
 
-:: VS2017 includes vswhere.exe that can be used to locate current VS2017 installation.
+:: Try to locate installed VS2017 VC environment.
 if exist "%VSWHERE_TOOLS_BIN%" (
     for /f "tokens=*" %%a in ('"%VSWHERE_TOOLS_BIN%" -latest -property installationPath') do (
         set VS_2017_VCINSTALL_DIR=%%a\VC\
@@ -152,7 +138,6 @@ if exist "%VSWHERE_TOOLS_BIN%" (
 :: Try to locate installed VS2017 Clang/C2.
 SET VS_2017_CLANGC2_VERSION_FILE=%VS_2017_VCINSTALL_DIR%Auxiliary/Build/Microsoft.ClangC2Version.default.txt
 if not exist "%VS_2017_CLANGC2_VERSION_FILE%" (
-	echo Could not find "%VS_2017_CLANGC2_VERSION_FILE%".
 	goto ON_ENV_ERROR
 )
 
@@ -160,7 +145,6 @@ set /p VS_2017_CLANGC2_VERSION=<"%VS_2017_CLANGC2_VERSION_FILE%"
 set VS_2017_CLANGC2_TOOLS_BIN_PATH=%VS_2017_VCINSTALL_DIR%Tools\ClangC2\%VS_2017_CLANGC2_VERSION%\bin\%VS_2017_CLANGC2_ARCH%\
 set VS_2017_CLANGC2_TOOLS_BIN=%VS_2017_CLANGC2_TOOLS_BIN_PATH%clang.exe
 if not exist "%VS_2017_CLANGC2_TOOLS_BIN%" (
-	echo Could not find "%VS_2017_CLANGC2_TOOLS_BIN%".
 	goto ON_ENV_ERROR
 )
 
@@ -168,51 +152,36 @@ if not exist "%VS_2017_CLANGC2_TOOLS_BIN%" (
 
 :: Try to locate VS2017 build tools installation.
 set VS_2017_BUILD_TOOLS_INSTALL_DIR=%ProgramFiles(x86)%\Microsoft Visual Studio\2017\BuildTools\
-set VS_2017_BUILD_TOOLS_CMD_PROMPT=%VS_2017_BUILD_TOOLS_INSTALL_DIR%VC\Auxiliary\Build\%VS_2017_VCVARS_ARCH%
-
-if not exist "%VS_2017_BUILD_TOOLS_CMD_PROMPT%" (
-    echo Could not find "%VS_2017_BUILD_TOOLS_CMD_PROMPT%".
-    goto SETUP_VS_2017_VC
-)
+set VS_2017_BUILD_TOOLS_CMD=%VS_2017_BUILD_TOOLS_INSTALL_DIR%VC\Auxiliary\Build\%VS_2017_VCVARS_ARCH%
 
 :: Setup VS2017 VC development environment using build tools installation.
-call "%VS_2017_BUILD_TOOLS_CMD_PROMPT%" > NUL
-
-:: Restore callers working directory in case it has been changed by VS scripts.
-cd /d %CALLER_WD%
-
-set "VS_CLANGC2_TOOLS_BIN_PATH=%VS_2017_CLANGC2_TOOLS_BIN_PATH%"
-goto ON_EXECUTE
+call :setup_build_env "%VS_2017_BUILD_TOOLS_CMD%" "" "%CALLER_WD%" && (
+    set "VS_CLANGC2_TOOLS_BIN_PATH=%VS_2017_CLANGC2_TOOLS_BIN_PATH%"
+    goto ON_EXECUTE
+)
 
 :SETUP_VS_2017_VC
 
 :: Try to locate installed VS2017 VC environment.
-set VS_2017_DEV_CMD_PROMPT=%VS_2017_VCINSTALL_DIR%Auxiliary\Build\%VS_2017_VCVARS_ARCH%
-if not exist "%VS_2017_DEV_CMD_PROMPT%" (
-    echo Could not find "%VS_2017_DEV_CMD_PROMPT%".
-    goto ON_ENV_ERROR
-)
+set VS_2017_DEV_CMD=%VS_2017_VCINSTALL_DIR%Auxiliary\Build\%VS_2017_VCVARS_ARCH%
 
 :: Setup VS2017 VC development environment using VS installation.
-call "%VS_2017_DEV_CMD_PROMPT%" > NUL
-
-:: Restore callers working directory in case it has been changed by VS scripts.
-cd /d %CALLER_WD%
-
-set "VS_CLANGC2_TOOLS_BIN_PATH=%VS_2017_CLANGC2_TOOLS_BIN_PATH%"
-goto ON_EXECUTE
+call :setup_build_env "%VS_2017_DEV_CMD%" "" "%CALLER_WD%" && (
+    set "VS_CLANGC2_TOOLS_BIN_PATH=%VS_2017_CLANGC2_TOOLS_BIN_PATH%"
+    goto ON_EXECUTE
+)
 
 :ON_ENV_ERROR
 
 echo Warning, failed to setup build environment needed by MSVC build mono-sgen.exe running as an AOT compiler.
-echo Incomplete build environment can cause AOT compiler build or link error's due to missing compiler, linker and platform libraries.
+echo Incomplete build environment can cause AOT compiler build due to missing compiler, linker and platform libraries.
 
 :ON_EXECUTE
 
-:: Add ClangC2 to PATH
-set "PATH=%VS_CLANGC2_TOOLS_BIN_PATH%;%PATH%"
+:: Add mono.sgen.exe (needed for optional LLVM tooling) and ClangC2 folders to PATH
+set "PATH=%RUN_MONO_SGEN_MSVC_SCRIPT_PATH%;%VS_CLANGC2_TOOLS_BIN_PATH%;%PATH%"
 
-call "%~dp0mono-sgen.exe" %* && (
+call "%RUN_MONO_SGEN_MSVC_SCRIPT_PATH%mono-sgen.exe" %* && (
     set EXCEUTE_RESULT=0
 ) || (
     set EXCEUTE_RESULT=1
@@ -223,9 +192,30 @@ call "%~dp0mono-sgen.exe" %* && (
 
 exit /b %EXCEUTE_RESULT%
 
-:restore_path
+:setup_build_env
 
-:: Restore PATH.
+:: Check if VS build environment script exists.
+if not exist "%~1" (
+    goto setup_build_env_error
+)
+
+:: Run VS build environment script.
+call "%~1" %~2 > NUL
+
+:: Restore callers working directory in case it has been changed by VS scripts.
+cd /d "%~3"
+
+goto setup_build_env_exit
+
+:setup_build_env_error
+exit /b 1
+
+:setup_build_env_exit
+goto :EOF
+
+:restore_default_path
+
+:: Restore default PATH.
 if not "%~2" == "" (
     if not "%~1" == "" (
         set "PATH=%~2;%~1"
