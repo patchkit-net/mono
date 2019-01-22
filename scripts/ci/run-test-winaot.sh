@@ -1,10 +1,9 @@
 #!/bin/bash -e
 
-if test -n "${MONO_LLVMONLY}";
-then
-${TESTCMD} --label=mini --timeout=25m make -j ${CI_CPU_COUNT} -w -C mono/mini -k llvmonlycheck
+if [[ ${CI_TAGS} == *'winaot_llvm'* ]]; then
+    ${TESTCMD} --label=mini --timeout=25m make -j ${CI_CPU_COUNT} -w -C mono/mini -k llvmfullaotcheck
 else
-${TESTCMD} --label=mini --timeout=25m make -j ${CI_CPU_COUNT} -w -C mono/mini -k fullaotcheck
+    ${TESTCMD} --label=mini --timeout=25m make -j ${CI_CPU_COUNT} -w -C mono/mini -k fullaotcheck
 fi
 
 # ${TESTCMD} --label=runtime --timeout=160m make -w -C mono/tests -k test-wrench V=1
