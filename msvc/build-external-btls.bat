@@ -30,14 +30,22 @@ set PERL_BIN_NAME=perl.exe
 set YASM_BIN_NAME=yasm.exe
 
 set MONO_BTLS_DIR=%~1
-set BTLS_DIR=%~2
-set BTLS_BUILD_DIR=%~3
-set MONO_DIST_DIR=%~4
-set VS_CFLAGS=%~5
-set VS_PLATFORM=%~6
-set VS_CONFIGURATION=%~7
-set VS_TARGET=%~8
-set MSBUILD_BIN_PATH=%~9
+shift
+set BTLS_DIR=%~1
+shift
+set BTLS_BUILD_DIR=%~1
+shift
+set MONO_DIST_DIR=%~1
+shift
+set VS_CFLAGS=%~1
+shift
+set VS_PLATFORM=%~1
+shift
+set VS_CONFIGURATION=%~1
+shift
+set VS_TARGET=%~1
+shift
+set MSBUILD_BIN_PATH=%~1
 
 :: Setup toolchain.
 :: set GIT=
@@ -326,7 +334,7 @@ if "%CMAKE%" == "" (
 )
 
 if /i "%VS_TARGET%" == "build" (
-    echo Found CMake: %CMAKE%
+    echo Found CMake: "%CMAKE%"
 )
 
 :: Check for optional cmake generate and build tools for full BTLS assembler supported build. NOTE, currently BTLS assembler build
@@ -362,7 +370,7 @@ goto _SETUP_CMAKE_ENVIRONMENT_EXIT
 :_SETUP_CMAKE_ENVIRONMENT_NINJA_GENERATOR
 
 if /i "%VS_TARGET%" == "build" (
-    echo Found Ninja: %NINJA%
+    echo Found Ninja: "%NINJA%"
     echo Using Ninja build generator, enabling full assembler build.
 )
 
