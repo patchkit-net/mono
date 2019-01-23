@@ -42,6 +42,20 @@ if "%SHELL%" == "/bin/bash" (
     call :restore_default_path "%HKCU_ENV_PATH%" "%HKLM_ENV_PATH%"
 )
 
+:: There is still a scenario where the default path can include cygwin\bin folder. If that's the case
+:: there is stil a big risk that build tools will be incorrectly resolved towards cygwin bin folder.
+:: Make sure to adjust path and drop all cygwin paths.
+set NEW_PATH=
+call where /Q "cygpath.exe" && (
+    echo Warning, PATH includes cygwin bin folders. This can cause build errors due to incorrectly
+    echo located build tools. Build script will drop all cygwin folders from used PATH.
+    for %%a in ("%PATH:;=";"%") do (
+        if not exist "%%~a\cygpath.exe" (
+            call :add_to_new_path "%%~a"
+        )
+    )
+)
+
 :: Configure all known build arguments.
 set VS_BUILD_ARGS=""
 set VS_TARGET=build
@@ -193,6 +207,16 @@ if not "%~2" == "" (
     ) else (
         set "PATH=%~2"
     )
+)
+
+goto :EOF
+
+:add_to_new_path
+
+if "%NEW_PATH%" == "" (
+    set "NEW_PATH=%~1"
+) else (
+    SET "NEW_PATH=%NEW_PATH%;%~1"
 )
 
 goto :EOF
