@@ -56,6 +56,10 @@ call where /Q "cygpath.exe" && (
     )
 )
 
+if not "%NEW_PATH%" == "" (
+    set "PATH=%NEW_PATH%"
+)
+
 :: Configure all known build arguments.
 set VS_BUILD_ARGS=""
 set VS_TARGET=build
@@ -222,4 +226,3 @@ if "%NEW_PATH%" == "" (
 goto :EOF
 
 @echo on
- 
